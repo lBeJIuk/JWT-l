@@ -1,7 +1,12 @@
 <?php
 
-
 class JWT {
+
+  private static $algoritms = array(
+    'HS256' => 'sha256',
+    'HS384' => 'sha384',
+    'HS512' => 'sha512'
+  );
 
   /**
    * @param $alg {String} Algoritm [HS256, HS384, HS512]
@@ -46,15 +51,9 @@ class JWT {
     // TODO more algorim
     switch ($alg) {
       case 'HS256':
-        $response = hash_hmac('sha256', $data, $secret);
-        break;
-
       case 'HS384':
-        $response = hash_hmac('sha384', $data, $secret);
-        break;
-
       case 'HS512':
-        $response = hash_hmac('sha512', $data, $secret);
+        $response = hash_hmac(self::$algoritms[$alg], $data, $secret);
         break;
 
       default:
@@ -73,44 +72,65 @@ class JWT {
    * @return string
    */
   public static function make_token($payload, $secret, $alg = 'HS512') {
-    try {
-      $response = self::make_header($alg) . '.' . self::make_payload($payload);
-      $response .= '.' . self::make_signature($response, $alg, $secret);
+    $response = self::make_header($alg) . '.' . self::make_payload($payload);
+    $response .= '.' . self::make_signature($response, $alg, $secret);
 
-      return $response;
-    } catch (Exception $e) {
-      echo $e->getMessage();
-    }
+    return $response;
   }
 
   /**
    * @param $token {String} JWT Token
    * @param $secret {String} Salt
+   * @param $alg {String} Algoritm [HS256, HS384, HS512(default)]
    *
    * @return bool
    */
-  public static function verify_token($token, $secret) {
+  public static function verify_token($token, $secret, $alg = 'HS512') {
+    $return  = array('success' => false);
     $periods = explode('.', $token);
 
     if (count($periods) === 3) {
-      $header  = base64_decode($periods[0]);
-      $payload = base64_decode($periods[1]);
+      $header    = base64_decode($periods[0]);
+      $payload   = base64_decode($periods[1]);
+      $header    = json_decode($header);
+      $payload   = json_decode($payload);
+      $signature = self::make_signature($periods[0] . '.' . $periods[1], $alg, $secret);
+      if ($signature === $periods[2]) {
+        $return['success'] = true;
 
-      if(is_object($header) && is_object($header)){
-        try {
-          $header  = json_decode($header);
-          $payload = json_decode($payload);
-          $signature = self::make_signature($periods[0] . '.' . $periods[1], $header->alg, $secret);
-          if ($signature === $periods[2]) {
-            return true;
-          }
-        } catch (Exception $e){
-          echo $e->getMessage();
+        if (isset($payload->exp) && (int)$payload->exp < time()) {
+          $return['success'] = false;
+          $return['msg']     = 'Expired';
+        }
+
+        if (isset($payload->nbf) && (int)$payload->nbf > time()) {
+          $return['success'] = false;
+          $return['msg']     = 'Not before';
         }
       }
     }
-    return false;
+
+    return $return;
   }
+}
+
+
+$pl = array(
+  'name'  => 'John Doe',
+  'admin' => true,
+  'iss'   => 'serg',
+  'sub'   => 'test.l  l',
+  'aud'   => '',
+  'exp'   => '12344123121',
+  'nbf'   => 321,
+  'iat'   => 213,
+  'jti'   => ''
+);
+try {
+  $a = JWT::make_token($pl, 'secret');
+  var_dump(JWT::verify_token($a, 'secret'));
+} catch (Exception $e) {
+  echo $e->getMessage();
 }
 
 ?>
