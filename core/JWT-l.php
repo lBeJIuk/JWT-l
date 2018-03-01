@@ -1,6 +1,8 @@
 <?php
 
-class JWT {
+namespace core;
+
+class JWT_l {
 
   private static $algoritms = array(
     'HS256' => 'sha256',
@@ -94,12 +96,16 @@ class JWT {
     $periods = explode('.', $token);
 
     if (count($periods) === 3) {
-      $header    = base64_decode($periods[0]);
-      $payload   = base64_decode($periods[1]);
-      $header    = json_decode($header);
-      $payload   = json_decode($payload);
-      $signature = self::make_signature($periods[0] . '.' . $periods[1], $alg, $secret);
-      if ($signature === $periods[2]) {
+      $header  = base64_decode($periods[0]);
+      $payload = base64_decode($periods[1]);
+      $header  = json_decode($header);
+      $payload = json_decode($payload);
+      if ($alg === 'bcrypt') {
+        $authorizate = hash_equals($periods[2], crypt($periods[0] . '.' . $periods[1], $secret));
+      } else {
+        $authorizate = $periods[2] === self::make_signature($periods[0] . '.' . $periods[1], $alg, $secret);
+      }
+      if ($authorizate) {
         $return['success'] = true;
 
         if (isset($payload->exp) && (int)$payload->exp < time()) {
@@ -117,4 +123,3 @@ class JWT {
     return $return;
   }
 }
-?>
