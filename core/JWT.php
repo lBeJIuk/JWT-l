@@ -9,7 +9,7 @@ class JWT {
   );
 
   /**
-   * @param $alg {String} Algoritm [HS256, HS384, HS512]
+   * @param $alg {String} Algoritm [HS256, HS384, HS512, bcrypt]
    *
    * @return {String}
    */
@@ -41,7 +41,7 @@ class JWT {
 
   /**
    * @param $data {String} base64($header).base64($payload)
-   * @param $alg {String} Algoritm [HS256, HS384, HS512]
+   * @param $alg {String} Algoritm [HS256, HS384, HS512, bcrypt]
    * @param $secret {String} Salt
    *
    * @return string
@@ -56,6 +56,10 @@ class JWT {
         $response = hash_hmac(self::$algoritms[$alg], $data, $secret);
         break;
 
+      case 'bcrypt':
+        $response = crypt($data, $secret);
+        break;
+
       default:
         throw new Exception('Unsupported encoding');
         break;
@@ -67,7 +71,7 @@ class JWT {
   /**
    * @param $payload {Array}
    * @param $secret {String} Salt
-   * @param $alg {String} Algoritm [HS256, HS384, HS512(default)]
+   * @param $alg {String} Algoritm [HS256, HS384, HS512(default), bcrypt]
    *
    * @return string
    */
@@ -113,24 +117,4 @@ class JWT {
     return $return;
   }
 }
-
-
-$pl = array(
-  'name'  => 'John Doe',
-  'admin' => true,
-  'iss'   => 'serg',
-  'sub'   => 'test.l  l',
-  'aud'   => '',
-  'exp'   => '12344123121',
-  'nbf'   => 321,
-  'iat'   => 213,
-  'jti'   => ''
-);
-try {
-  $a = JWT::make_token($pl, 'secret');
-  var_dump(JWT::verify_token($a, 'secret'));
-} catch (Exception $e) {
-  echo $e->getMessage();
-}
-
 ?>
